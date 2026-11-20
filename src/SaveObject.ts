@@ -193,6 +193,79 @@ export async function getSaveData(forceExcludeRunningScripts = false): Promise<S
   return await encodeJsonSaveString(JSON.stringify(save, Replacer));
 }
 
+const CLIPBOARD_SAVE_PREFIX = "BITBURNER-CLIPBOARD-V1:";
+
+export async function exportGameToClipboard(): Promise<void> {
+  // Preserve the existing export bonus behavior.
+  giveExportBonus();
+
+  const saveData = await getSaveData();
+
+  let base64: string;
+
+  if (typeof saveData === "string") {
+    base64 = saveData;
+  } else {
+    // Convert gzip-compressed bytes to Base64 text.
+    const chunkSize = 8192;
+    const chunks: string[] = [];
+
+    for (let i = 0; i < saveData.length; i += chunkSize) {
+      chunks.push(
+        String.fromCharCode(
+          ...saveData.subarray(i, i + chunkSize),
+        ),
+      );
+    }
+
+    base64 = btoa(chunks.join(""));
+  }
+
+  const text = CLIPBOARD_SAVE_PREFIX + base64;
+
+  await navigator.clipboard.writeText(text);
+}
+
+export async function getSaveDataFromClipboardText(
+  text: string,
+): Promise<SaveData> {
+  const cleaned = text.trim();
+
+  if (!cleaned.startsWith(CLIPBOARD_SAVE_PREFIX)) {
+    throw new Error(
+      "This is not a Bitburner clipboard save.",
+    );
+  }
+
+  const base64 = cleaned.slice(CLIPBOARD_SAVE_PREFIX.length);
+
+  if (!base64) {
+    throw new Error("Clipboard save is empty.");
+  }
+
+  // Binary saves are gzip-compressed, beginning with
+  // bytes 1F 8B. In Base64, that begins with H4sI.
+  let saveData: SaveData;
+
+  if (base64.startsWith("H4sI")) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    saveData = bytes;
+  } else {
+    saveData = base64;
+  }
+
+  // Validate before allowing import.
+  await getImportDataFromSaveData(saveData);
+
+  return saveData;
+}
+
 export async function saveGame(emitToastEvent = true): Promise<void> {
   const savedOn = new Date().getTime();
   Player.lastSave = savedOn;
