@@ -1,6 +1,11 @@
 import { Skills } from "@nsdefs";
 
-import { loadAliases, loadGlobalAliases, Aliases, GlobalAliases } from "./Alias";
+import {
+  loadAliases,
+  loadGlobalAliases,
+  Aliases,
+  GlobalAliases,
+} from "./Alias";
 import { getCompaniesSave, loadCompanies } from "./Company/Companies";
 import { CONSTANTS } from "./Constants";
 import { getFactionsSave, loadFactions } from "./Faction/Factions";
@@ -21,8 +26,17 @@ import { ToastVariant } from "@enums";
 import { pushGameSaved, pushImportResult } from "./Electron";
 import { getGoSave, loadGo } from "./Go/SaveLoad";
 import { SaveData } from "./types";
-import { SaveDataError, canUseBinaryFormat, decodeSaveData, encodeJsonSaveString } from "./utils/SaveDataUtils";
-import { decodeBase64BytesToBytes, isBinaryFormat, isSteamCloudFormat } from "../electron/saveDataBinaryFormat";
+import {
+  SaveDataError,
+  canUseBinaryFormat,
+  decodeSaveData,
+  encodeJsonSaveString,
+} from "./utils/SaveDataUtils";
+import {
+  decodeBase64BytesToBytes,
+  isBinaryFormat,
+  isSteamCloudFormat,
+} from "../electron/saveDataBinaryFormat";
 import { downloadContentAsFile } from "./utils/FileUtils";
 import { handleGetSaveDataInfoError } from "./utils/ErrorHandler";
 import { isObject, assertObject } from "./utils/TypeAssertion";
@@ -115,7 +129,9 @@ type ParsedSaveData = {
  * - "Optional 2": "loadGame" only loads these properties if they exist. The respective loaders require string values.
  * If saveObject has these properties, we check if their values are strings.
  */
-export function assertBitburnerSaveObjectType(saveObject: unknown): asserts saveObject is BitburnerSaveObjectType {
+export function assertBitburnerSaveObjectType(
+  saveObject: unknown,
+): asserts saveObject is BitburnerSaveObjectType {
   assertObject(saveObject);
 
   const mandatoryKeysOfSaveObj = [
@@ -129,7 +145,9 @@ export function assertBitburnerSaveObjectType(saveObject: unknown): asserts save
   for (const key of mandatoryKeysOfSaveObj) {
     const value = saveObject[key];
     if (typeof value !== "string") {
-      throw new Error(`Save data contains invalid data. Value of ${key} is not a string.`);
+      throw new Error(
+        `Save data contains invalid data. Value of ${key} is not a string.`,
+      );
     }
   }
 
@@ -137,7 +155,9 @@ export function assertBitburnerSaveObjectType(saveObject: unknown): asserts save
   for (const key of optional1KeysOfSaveObj) {
     if (Object.hasOwn(saveObject, key)) {
       if (typeof saveObject[key] !== "string") {
-        throw new Error(`Save data contains invalid data. Value of ${key} is not a string.`);
+        throw new Error(
+          `Save data contains invalid data. Value of ${key} is not a string.`,
+        );
       }
     } else {
       console.warn(`Save data does not have ${key}.`);
@@ -145,15 +165,24 @@ export function assertBitburnerSaveObjectType(saveObject: unknown): asserts save
     }
   }
 
-  const optional2KeysOfSaveObj = ["SettingsSave", "LastExportBonus", "AllGangsSave", "VersionSave"];
+  const optional2KeysOfSaveObj = [
+    "SettingsSave",
+    "LastExportBonus",
+    "AllGangsSave",
+    "VersionSave",
+  ];
   for (const key of optional2KeysOfSaveObj) {
     if (Object.hasOwn(saveObject, key) && typeof saveObject[key] !== "string") {
-      throw new Error(`Save data contains invalid data. Value of ${key} is not a string.`);
+      throw new Error(
+        `Save data contains invalid data. Value of ${key} is not a string.`,
+      );
     }
   }
 }
 
-function assertParsedSaveData(parsedSaveData: unknown): asserts parsedSaveData is ParsedSaveData {
+function assertParsedSaveData(
+  parsedSaveData: unknown,
+): asserts parsedSaveData is ParsedSaveData {
   if (
     !isObject(parsedSaveData) ||
     parsedSaveData.ctor !== "BitburnerSaveObject" ||
@@ -165,7 +194,9 @@ function assertParsedSaveData(parsedSaveData: unknown): asserts parsedSaveData i
   }
 }
 
-export async function getSaveData(forceExcludeRunningScripts = false): Promise<SaveData> {
+export async function getSaveData(
+  forceExcludeRunningScripts = false,
+): Promise<SaveData> {
   const save = new BitburnerSaveObject();
   save.PlayerSave = JSON.stringify(Player, Replacer);
 
@@ -177,8 +208,14 @@ export async function getSaveData(forceExcludeRunningScripts = false): Promise<S
 
   save.CompaniesSave = JSON.stringify(getCompaniesSave(), Replacer);
   save.FactionsSave = JSON.stringify(getFactionsSave(), Replacer);
-  save.AliasesSave = JSON.stringify(Object.fromEntries(Aliases.entries()), Replacer);
-  save.GlobalAliasesSave = JSON.stringify(Object.fromEntries(GlobalAliases.entries()), Replacer);
+  save.AliasesSave = JSON.stringify(
+    Object.fromEntries(Aliases.entries()),
+    Replacer,
+  );
+  save.GlobalAliasesSave = JSON.stringify(
+    Object.fromEntries(GlobalAliases.entries()),
+    Replacer,
+  );
   save.StockMarketSave = JSON.stringify(StockMarket, Replacer);
   save.SettingsSave = JSON.stringify(Settings, Replacer);
   save.VersionSave = JSON.stringify(CONSTANTS.VersionNumber, Replacer);
@@ -211,11 +248,7 @@ export async function exportGameToClipboard(): Promise<void> {
     const chunks: string[] = [];
 
     for (let i = 0; i < saveData.length; i += chunkSize) {
-      chunks.push(
-        String.fromCharCode(
-          ...saveData.subarray(i, i + chunkSize),
-        ),
-      );
+      chunks.push(String.fromCharCode(...saveData.subarray(i, i + chunkSize)));
     }
 
     base64 = btoa(chunks.join(""));
@@ -232,9 +265,7 @@ export async function getSaveDataFromClipboardText(
   const cleaned = text.trim();
 
   if (!cleaned.startsWith(CLIPBOARD_SAVE_PREFIX)) {
-    throw new Error(
-      "This is not a Bitburner clipboard save.",
-    );
+    throw new Error("This is not a Bitburner clipboard save.");
   }
 
   const base64 = cleaned.slice(CLIPBOARD_SAVE_PREFIX.length);
@@ -338,9 +369,15 @@ export async function importGame(
     try {
       parsedSaveData = await getParsedSaveData(saveData);
       // Validate SettingsSave
-      if (parsedSaveData.data.SettingsSave && typeof parsedSaveData.data.SettingsSave === "string") {
+      if (
+        parsedSaveData.data.SettingsSave &&
+        typeof parsedSaveData.data.SettingsSave === "string"
+      ) {
         // Parse settings from data.SettingsSave
-        const settings: unknown = JSON.parse(parsedSaveData.data.SettingsSave, Reviver);
+        const settings: unknown = JSON.parse(
+          parsedSaveData.data.SettingsSave,
+          Reviver,
+        );
         assertObject(settings);
         // Modify setting
         settings.SyncSteamAchievements = overrideSettings.SyncSteamAchievements;
@@ -371,7 +408,9 @@ export async function importGame(
   setTimeout(() => location.reload(), 0);
 }
 
-export async function getSaveDataFromFile(files: FileList | null): Promise<SaveData> {
+export async function getSaveDataFromFile(
+  files: FileList | null,
+): Promise<SaveData> {
   if (files === null) {
     throw new Error("No file selected");
   }
@@ -390,7 +429,9 @@ export async function getSaveDataFromFile(files: FileList | null): Promise<SaveD
   return new TextDecoder().decode(rawData);
 }
 
-export async function getParsedSaveData(saveData: SaveData): Promise<ParsedSaveData> {
+export async function getParsedSaveData(
+  saveData: SaveData,
+): Promise<ParsedSaveData> {
   if (!saveData || saveData.length === 0) {
     throw new Error("Invalid save data");
   }
@@ -432,7 +473,9 @@ export async function getParsedSaveData(saveData: SaveData): Promise<ParsedSaveD
   return parsedSaveData;
 }
 
-export async function getImportDataFromSaveData(saveData: SaveData): Promise<ImportData> {
+export async function getImportDataFromSaveData(
+  saveData: SaveData,
+): Promise<ImportData> {
   const parsedSaveData = await getParsedSaveData(saveData);
 
   const data: ImportData = {
@@ -443,9 +486,15 @@ export async function getImportDataFromSaveData(saveData: SaveData): Promise<Imp
 
   let syncSteamAchievements = true;
   // Parse data.SettingsSave to get syncSteamAchievements.
-  if (parsedSaveData.data.SettingsSave && typeof parsedSaveData.data.SettingsSave === "string") {
+  if (
+    parsedSaveData.data.SettingsSave &&
+    typeof parsedSaveData.data.SettingsSave === "string"
+  ) {
     try {
-      const settings: unknown = JSON.parse(parsedSaveData.data.SettingsSave, Reviver);
+      const settings: unknown = JSON.parse(
+        parsedSaveData.data.SettingsSave,
+        Reviver,
+      );
       assertObject(settings);
       if (typeof settings.SyncSteamAchievements === "boolean") {
         syncSteamAchievements = settings.SyncSteamAchievements;
@@ -463,13 +512,23 @@ export async function getImportDataFromSaveData(saveData: SaveData): Promise<Imp
     money: importedPlayer.money,
     skills: importedPlayer.skills,
 
-    augmentations: importedPlayer.augmentations?.reduce<number>((total, current) => (total += current.level), 0) ?? 0,
+    augmentations:
+      importedPlayer.augmentations?.reduce<number>(
+        (total, current) => (total += current.level),
+        0,
+      ) ?? 0,
     factions: importedPlayer.factions?.length ?? 0,
     achievements: importedPlayer.achievements?.length ?? 0,
 
     bitNode: importedPlayer.bitNodeN,
-    bitNodeLevel: getBitNodeLevel(importedPlayer.bitNodeN, importedPlayer.activeSourceFileLvl(importedPlayer.bitNodeN)),
-    sourceFiles: [...importedPlayer.sourceFiles].reduce<number>((total, [__bn, lvl]) => (total += lvl), 0),
+    bitNodeLevel: getBitNodeLevel(
+      importedPlayer.bitNodeN,
+      importedPlayer.activeSourceFileLvl(importedPlayer.bitNodeN),
+    ),
+    sourceFiles: [...importedPlayer.sourceFiles].reduce<number>(
+      (total, [__bn, lvl]) => (total += lvl),
+      0,
+    ),
     exploits: importedPlayer.exploits.length,
 
     syncSteamAchievements,
@@ -518,7 +577,10 @@ class BitburnerSaveObject implements BitburnerSaveObjectType {
   DarknetSave = "";
   InfiltrationsSave = "";
 
-  static includedKeys = makeSerializable("BitburnerSaveObject", BitburnerSaveObject);
+  static includedKeys = makeSerializable(
+    "BitburnerSaveObject",
+    BitburnerSaveObject,
+  );
 }
 
 export async function loadGame(saveData: SaveData): Promise<boolean> {
@@ -567,7 +629,10 @@ export async function loadGame(saveData: SaveData): Promise<boolean> {
   }
 
   // "Optional 1"
-  loadStaneksGift(saveObj.StaneksGiftSave, loadedSaveObjectMiniDump.VersionSave);
+  loadStaneksGift(
+    saveObj.StaneksGiftSave,
+    loadedSaveObjectMiniDump.VersionSave,
+  );
   try {
     loadStockMarket(saveObj.StockMarketSave);
   } catch (e) {
@@ -581,7 +646,9 @@ export async function loadGame(saveData: SaveData): Promise<boolean> {
       // Try to set saved settings.
       loadSettings(saveObj.SettingsSave);
     } catch (e) {
-      console.error("SettingsSave was present but an error occurred while loading:");
+      console.error(
+        "SettingsSave was present but an error occurred while loading:",
+      );
       console.error(e);
     }
   }
@@ -589,20 +656,29 @@ export async function loadGame(saveData: SaveData): Promise<boolean> {
     try {
       // Doesn't need Reviver because it's a number.
       const lastExportBonus: unknown = JSON.parse(saveObj.LastExportBonus);
-      if (typeof lastExportBonus !== "number" || !Number.isFinite(lastExportBonus)) {
+      if (
+        typeof lastExportBonus !== "number" ||
+        !Number.isFinite(lastExportBonus)
+      ) {
         throw new Error(`Invalid LastExportBonus: ${saveObj.LastExportBonus}`);
       }
       ExportBonus.setLastExportBonus(lastExportBonus);
     } catch (error) {
       ExportBonus.setLastExportBonus(new Date().getTime());
-      console.error(`ERROR: Failed to parse last export bonus setting. Error: ${error}.`, error);
+      console.error(
+        `ERROR: Failed to parse last export bonus setting. Error: ${error}.`,
+        error,
+      );
     }
   }
   if (Player.gang && saveObj.AllGangsSave) {
     try {
       loadAllGangs(saveObj.AllGangsSave);
     } catch (error) {
-      console.error(`ERROR: Failed to parse AllGangsSave. Error: ${error}.`, error);
+      console.error(
+        `ERROR: Failed to parse AllGangsSave. Error: ${error}.`,
+        error,
+      );
     }
   }
   if (saveObj.VersionSave) {
@@ -635,9 +711,14 @@ export async function loadGame(saveData: SaveData): Promise<boolean> {
 }
 
 function createScamUpdateText(): void {
-  if (navigator.userAgent.includes("wv") && navigator.userAgent.includes("Chrome/")) {
+  if (
+    navigator.userAgent.includes("wv") &&
+    navigator.userAgent.includes("Chrome/")
+  ) {
     setInterval(() => {
-      dialogBoxCreate("SCAM ALERT. This app is not official and you should uninstall it.");
+      dialogBoxCreate(
+        "SCAM ALERT. This app is not official and you should uninstall it.",
+      );
     }, 1000);
   }
 }
