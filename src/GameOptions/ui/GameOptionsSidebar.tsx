@@ -9,10 +9,22 @@ import {
   Save,
   Upload,
 } from "@mui/icons-material";
-import { Box, Button, List, ListItemButton, Paper, Tooltip, Typography } from "@mui/material";
+import {
+  Box, Button, Dialog, DialogActions,
+  DialogContent, DialogTitle, List,
+  ListItemButton, Paper, TextField,
+  Tooltip, Typography,
+} from "@mui/material";
 import { default as React, useRef, useState } from "react";
 import { FileDiagnosticModal } from "../../Diagnostic/FileDiagnosticModal";
-import { ImportData, getSaveDataFromFile, getImportDataFromSaveData, importGame } from "../../SaveObject";
+import {
+  ImportData,
+  getSaveDataFromFile,
+  getImportDataFromSaveData,
+  importGame,
+  exportGameToClipboard,
+  getSaveDataFromClipboardText,
+} from "../../SaveObject";
 import { StyleEditorButton } from "../../Themes/ui/StyleEditorButton";
 import { ThemeEditorButton } from "../../Themes/ui/ThemeEditorButton";
 import { ConfirmationModal } from "../../ui/React/ConfirmationModal";
@@ -59,11 +71,61 @@ export const GameOptionsSidebar = (props: IProps): React.ReactElement => {
 
   const [diagnosticOpen, setDiagnosticOpen] = useState(false);
   const [importSaveOpen, setImportSaveOpen] = useState(false);
+  const [clipboardImportOpen, setClipboardImportOpen] = useState(false);
+
+  const [clipboardText, setClipboardText] = useState("");
   const [importData, setImportData] = useState<ImportData | null>(null);
   const [syncSteamAchievements, setSyncSteamAchievements] = useState(true);
 
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  
+  async function copySaveToClipboard(): Promise<void> {
+    try {
+      await exportGameToClipboard();
+  
+      SnackbarEvents.emit(
+        "Complete game save copied to clipboard!",
+        ToastVariant.SUCCESS,
+        5000,
+      );
+    } catch (error: unknown) {
+      console.error(error);
+  
+      SnackbarEvents.emit(
+        `Clipboard export failed: ${String(error)}`,
+        ToastVariant.ERROR,
+        5000,
+      );
+    }
+  }
+  
+  async function importClipboardText(): Promise<void> {
+    try {
+      const saveData =
+        await getSaveDataFromClipboardText(clipboardText);
+  
+      const data = await getImportDataFromSaveData(saveData);
+  
+      // Reuse Bitburner's normal import confirmation.
+      setImportData(data);
+      setSyncSteamAchievements(
+        data.playerData?.syncSteamAchievements ?? true,
+      );
+  
+      setClipboardImportOpen(false);
+      setImportSaveOpen(true);
+      setClipboardText("");
+    } catch (error: unknown) {
+      console.error(error);
+  
+      SnackbarEvents.emit(
+        `Invalid clipboard save: ${String(error)}`,
+        ToastVariant.ERROR,
+        5000,
+      );
+    }
+  }
 
   function startImport(): void {
     if (!window.File || !window.FileReader || !window.FileList || !window.Blob) return;
@@ -135,6 +197,7 @@ export const GameOptionsSidebar = (props: IProps): React.ReactElement => {
           height: "fit-content",
           gridTemplateAreas: `"save   delete"
       "export import"
+      "copy   paste"
       "kill   kill"
       "reset  diagnose"
       "browse browse"
@@ -179,6 +242,65 @@ export const GameOptionsSidebar = (props: IProps): React.ReactElement => {
             />
           </Button>
         </Tooltip>
+        <Button
+          sx={{ gridArea: "copy" }}
+          onClick={() => {
+            void copySaveToClipboard();
+          }}
+        >
+          Copy Save to Clipboard
+        </Button>
+        
+        <Button
+          sx={{ gridArea: "paste" }}
+          onClick={() => setClipboardImportOpen(true)}
+        >
+          Import Save from Text
+        </Button>
+        <Dialog
+          open={clipboardImportOpen}
+          onClose={() => setClipboardImportOpen(false)}
+          fullWidth
+          maxWidth="md"
+        >
+          <DialogTitle>Import Save from Clipboard</DialogTitle>
+        
+          <DialogContent>
+            <Typography sx={{ mb: 2 }}>
+              Paste your exported Bitburner save below.
+              Your current progress will only be replaced
+              after you confirm the import.
+            </Typography>
+        
+            <TextField
+              multiline
+              minRows={6}
+              maxRows={12}
+              fullWidth
+              placeholder="BITBURNER-CLIPBOARD-V1:..."
+              value={clipboardText}
+              onChange={(event) =>
+                setClipboardText(event.target.value)
+              }
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setClipboardImportOpen(false)}
+            >
+              Cancel
+            </Button>
+        
+            <Button
+              disabled={!clipboardText.trim()}
+              onClick={() => {
+                void importClipboardText();
+              }}
+            >
+              Validate and Import
+            </Button>
+          </DialogActions>
+        </Dialog>
         <ConfirmationModal
           open={importSaveOpen}
           onClose={() => setImportSaveOpen(false)}
